@@ -1,38 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { parseTournamentData, formatScore, scoreToNum } from '@/lib/espn'
+import { parseTournamentData } from '@/lib/espn'
 import type { Player, TournamentMeta } from '@/lib/types'
+import { scoreClass, Score, Flag } from '@/components/golf-tracker-display'
+import { PairingsView } from '@/components/pairings-view'
+import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
 
 // ─── Refresh interval (ms) ────────────────────────────────────────────────────
 const REFRESH_MS = 60_000
-
-// ─── Score colour helper ──────────────────────────────────────────────────────
-function scoreClass(score: string | null | undefined, bold = false): string {
-  if (!score || score === 'E') return bold ? 'font-semibold' : 'text-muted-foreground'
-  const n = scoreToNum(score)
-  const weight = bold ? 'font-semibold' : ''
-  if (n < 0) return `${weight} text-green-600 dark:text-green-400`
-  if (n > 0) return `${weight} text-red-500 dark:text-red-400`
-  return bold ? 'font-semibold' : ''
-}
-
-// ─── Score display ────────────────────────────────────────────────────────────
-function Score({
-  score,
-  bold = false,
-  size = 'sm',
-}: {
-  score: string | null | undefined
-  bold?: boolean
-  size?: 'sm' | 'base' | 'lg'
-}) {
-  if (!score) return <span className="text-muted-foreground">—</span>
-  const sizeClass = size === 'lg' ? 'text-lg' : size === 'base' ? 'text-base' : 'text-sm'
-  return (
-    <span className={`${sizeClass} ${scoreClass(score, bold)}`}>{formatScore(score)}</span>
-  )
-}
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: Player['status'] }) {
@@ -49,20 +25,6 @@ function StatusBadge({ status }: { status: Player['status'] }) {
       </span>
     )
   return null
-}
-
-// ─── Flag image ───────────────────────────────────────────────────────────────
-function Flag({ url, country }: { url: string; country: string }) {
-  if (!url) return null
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt={country}
-      title={country}
-      className="w-5 h-[14px] object-cover rounded-[2px] flex-shrink-0 shadow-sm"
-    />
-  )
 }
 
 // ─── Leaderboard table ────────────────────────────────────────────────────────
@@ -177,102 +139,6 @@ function PlayerRow({ player: p, even }: { player: Player; even: boolean }) {
   )
 }
 
-// ─── Pairings view ────────────────────────────────────────────────────────────
-interface PairingGroup {
-  time: string
-  ms: number
-  players: Player[]
-}
-
-function buildPairings(players: Player[]): PairingGroup[] {
-  const map = new Map<string, PairingGroup>()
-  for (const p of players) {
-    const key = p.teeTime
-    if (!map.has(key)) map.set(key, { time: p.teeTime, ms: p.teeTimeMs, players: [] })
-    map.get(key)!.players.push(p)
-  }
-  return Array.from(map.values()).sort((a, b) => {
-    if (!a.ms) return 1
-    if (!b.ms) return -1
-    return a.ms - b.ms
-  })
-}
-
-function PairingsView({
-  players,
-  search,
-}: {
-  players: Player[]
-  search: string
-}) {
-  const groups = useMemo(() => buildPairings(players), [players])
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return groups
-    const q = search.toLowerCase()
-    return groups
-      .map((g) => ({
-        ...g,
-        players: g.players.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q)
-        ),
-      }))
-      .filter((g) => g.players.length > 0)
-  }, [groups, search])
-
-  if (filtered.length === 0) {
-    return (
-      <div className="text-center py-20 text-muted-foreground text-sm">
-        No pairings found.
-      </div>
-    )
-  }
-
-  const hasRealTimes = filtered.some((g) => g.ms > 0)
-  if (!hasRealTimes) {
-    return (
-      <div className="text-center py-20 text-muted-foreground text-sm">
-        Tee time / pairing data isn&apos;t available for this round yet.
-        <br />
-        Check back closer to tee-off.
-      </div>
-    )
-  }
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {filtered.map((group) => (
-        <div
-          key={group.time}
-          className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3"
-        >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-            {group.time}
-          </div>
-          {group.players.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <Flag url={p.flagUrl} country={p.country} />
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.posDisplay}</div>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <Score score={p.totalScore} bold />
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  Thru {p.thru}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ─── Header ───────────────────────────────────────────────────────────────────
 function Header({
   meta,
@@ -344,8 +210,9 @@ export function GolfTracker() {
 
   // Controls
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<'leaderboard' | 'pairings'>('leaderboard')
+  const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const [showCuts, setShowCuts] = useState(true)
+  const { followedKeys, toggleFollowed } = useFollowedPairings()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -505,6 +372,10 @@ export function GolfTracker() {
           >
             Pairings
           </button>
+          <FollowedPairingsTabButton
+            selected={view === 'followed'}
+            onClick={() => setView('followed')}
+          />
         </div>
 
         {/* Cut toggle */}
@@ -532,7 +403,14 @@ export function GolfTracker() {
         {view === 'leaderboard' ? (
           <LeaderboardTable players={filtered} />
         ) : (
-          <PairingsView players={filtered} search={search} />
+          <PairingsView
+            players={filtered}
+            search={search}
+            followedKeys={followedKeys}
+            onToggleFollow={toggleFollowed}
+            showFollowToggle
+            onlyFollowed={view === 'followed'}
+          />
         )}
 
         {/* Footer note */}
