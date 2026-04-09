@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { parseTournamentData } from '@/lib/espn'
 import type { Player, TournamentMeta } from '@/lib/types'
 import { scoreClass, Score, Flag } from '@/components/golf-tracker-display'
@@ -27,8 +27,33 @@ function StatusBadge({ status }: { status: Player['status'] }) {
   return null
 }
 
+// ─── Cut separator row ────────────────────────────────────────────────────────
+function CutSeparatorRow({ label }: { label: string }) {
+  return (
+    <tr>
+      <td colSpan={9} className="py-1.5 px-4">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-px bg-red-400/50 dark:bg-red-500/40" />
+          <span className="text-[10px] font-semibold text-red-500/70 dark:text-red-400/70 tracking-widest uppercase px-1">
+            {label}
+          </span>
+          <div className="flex-1 h-px bg-red-400/50 dark:bg-red-500/40" />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 // ─── Leaderboard table ────────────────────────────────────────────────────────
-function LeaderboardTable({ players }: { players: Player[] }) {
+function LeaderboardTable({
+  players,
+  meta,
+  allPlayers,
+}: {
+  players: Player[]
+  meta: TournamentMeta | null
+  allPlayers: Player[]
+}) {
   if (players.length === 0) {
     return (
       <div className="text-center py-20 text-muted-foreground text-sm">
@@ -36,6 +61,45 @@ function LeaderboardTable({ players }: { players: Player[] }) {
       </div>
     )
   }
+
+  // Determine where to insert the cut separator
+  const hasCutPlayers = allPlayers.some((p) => p.status === 'cut')
+  const isPreCut = !hasCutPlayers && meta !== null && meta.round <= 2
+
+  let cutBeforeIndex = -1
+
+  if (isPreCut) {
+    // The Masters cuts top 50 and ties; all other PGA Tour events cut top 65 and ties
+    const isMasters = !!(
+      meta?.name?.toLowerCase().includes('masters') ||
+      meta?.shortName?.toLowerCase().includes('masters')
+    )
+    const CUT_POSITION = isMasters ? 50 : 65
+    const sorted = [...allPlayers].sort((a, b) => a.position - b.position)
+    if (sorted.length >= CUT_POSITION) {
+      const cutNum = sorted[CUT_POSITION - 1]?.totalNum
+      if (cutNum !== undefined) {
+        // Insert before the first player worse than the cut score
+        cutBeforeIndex = players.findIndex((p) => p.totalNum > cutNum)
+      }
+    }
+  } else if (hasCutPlayers) {
+    // Post-cut: separator between last active/complete player and first cut player
+    cutBeforeIndex = players.findIndex(
+      (p) => p.status === 'cut' || p.status === 'withdrawn'
+    )
+  }
+
+  const cutLabel = isPreCut ? 'Projected Cut' : 'Cut'
+
+  // Build rows array with optional cut separator
+  const rows: React.ReactNode[] = []
+  players.forEach((player, i) => {
+    if (cutBeforeIndex === i) {
+      rows.push(<CutSeparatorRow key="cut-separator" label={cutLabel} />)
+    }
+    rows.push(<PlayerRow key={player.id} player={player} even={i % 2 === 0} />)
+  })
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
@@ -71,11 +135,7 @@ function LeaderboardTable({ players }: { players: Player[] }) {
             </th>
           </tr>
         </thead>
-        <tbody>
-          {players.map((player, i) => (
-            <PlayerRow key={player.id} player={player} even={i % 2 === 0} />
-          ))}
-        </tbody>
+        <tbody>{rows}</tbody>
       </table>
     </div>
   )
@@ -211,7 +271,6 @@ export function GolfTracker() {
   // Controls
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
-  const [showCuts, setShowCuts] = useState(true)
   const { followedKeys, toggleFollowed } = useFollowedPairings()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -265,7 +324,6 @@ export function GolfTracker() {
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = players
-    if (!showCuts) list = list.filter((p) => p.status !== 'cut' && p.status !== 'withdrawn')
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(
@@ -276,7 +334,7 @@ export function GolfTracker() {
       )
     }
     return list
-  }, [players, search, showCuts])
+  }, [players, search])
 
   // ── Render states ──────────────────────────────────────────────────────────
   if (loading) {
@@ -378,18 +436,6 @@ export function GolfTracker() {
           />
         </div>
 
-        {/* Cut toggle */}
-        <button
-          onClick={() => setShowCuts((v) => !v)}
-          className={`h-9 px-3 rounded-lg border text-sm transition-colors ${
-            showCuts
-              ? 'border-input hover:bg-muted'
-              : 'border-primary bg-primary/10 text-primary'
-          }`}
-        >
-          {showCuts ? 'Hide cuts' : 'Show cuts'}
-        </button>
-
         {/* Result count */}
         {search && (
           <span className="text-xs text-muted-foreground">
@@ -401,7 +447,7 @@ export function GolfTracker() {
       {/* Main content */}
       <main className="max-w-screen-xl mx-auto px-4 pb-12">
         {view === 'leaderboard' ? (
-          <LeaderboardTable players={filtered} />
+          <LeaderboardTable players={filtered} meta={meta} allPlayers={players} />
         ) : (
           <PairingsView
             players={filtered}
