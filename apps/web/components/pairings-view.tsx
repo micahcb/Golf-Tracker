@@ -11,7 +11,6 @@ interface PairingGroup {
   players: Player[]
 }
 
-<<<<<<< HEAD
 /** Group key: epoch ms when known; otherwise bucket by display label (often "—"). */
 function pairingBucketKey(p: Player): string {
   if (p.teeTimeMs > 0) return `ms:${p.teeTimeMs}`
@@ -25,13 +24,6 @@ function buildPairings(players: Player[]): PairingGroup[] {
     if (!map.has(key)) {
       map.set(key, { time: p.teeTime, ms: p.teeTimeMs, players: [] })
     }
-=======
-function buildPairings(players: Player[]): PairingGroup[] {
-  const map = new Map<string, PairingGroup>()
-  for (const p of players) {
-    const key = p.teeTime
-    if (!map.has(key)) map.set(key, { time: p.teeTime, ms: p.teeTimeMs, players: [] })
->>>>>>> 3f28da0c2e24a3da0a937be88c5cd93536754a8b
     map.get(key)!.players.push(p)
   }
   return Array.from(map.values()).sort((a, b) => {
