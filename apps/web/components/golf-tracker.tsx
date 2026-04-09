@@ -278,6 +278,13 @@ export function GolfTracker() {
     return list
   }, [players, search, showCuts])
 
+  /** Cut/WD only — pairings group by tee time; search filters groups inside PairingsView. */
+  const playersForPairings = useMemo(() => {
+    let list = players
+    if (!showCuts) list = list.filter((p) => p.status !== 'cut' && p.status !== 'withdrawn')
+    return list
+  }, [players, showCuts])
+
   // ── Render states ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -404,7 +411,7 @@ export function GolfTracker() {
           <LeaderboardTable players={filtered} />
         ) : (
           <PairingsView
-            players={filtered}
+            players={playersForPairings}
             search={search}
             followedKeys={followedKeys}
             onToggleFollow={toggleFollowed}

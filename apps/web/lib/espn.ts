@@ -65,7 +65,7 @@ function parseThru(round: ESPNRoundScore | undefined): string {
 
 // ─── Player parser ────────────────────────────────────────────────────────────
 
-export function parseCompetitor(c: ESPNCompetitor): Player {
+export function parseCompetitor(c: ESPNCompetitor, currentRound: number): Player {
   const linescores = c.linescores ?? []
 
   // Build 4 round slots
@@ -78,13 +78,29 @@ export function parseCompetitor(c: ESPNCompetitor): Player {
     }
   }) as [Round, Round, Round, Round]
 
-  // Active round = last linescore that has a value
+  // Active round = last linescore that has a value (for thru / status)
   const activeRound = [...linescores].reverse().find((l) => l.value !== undefined)
 
   const thru = parseThru(activeRound)
-  const { display: teeTime, ms: teeTimeMs } = activeRound
-    ? parseTeeTime(activeRound)
-    : { display: '—', ms: 0 }
+  const name = c.athlete?.fullName ?? 'Unknown'
+
+  // Tee time: prefer the linescore for the competition's current period so partners stay aligned
+  // when one player has a score posted for the next round and another does not.
+  const roundForTee = linescores.find((l) => l.period === currentRound)
+  let teeTime = '—'
+  let teeTimeMs = 0
+  if (roundForTee) {
+    const t = parseTeeTime(roundForTee)
+    if (t.ms > 0) {
+      teeTime = t.display
+      teeTimeMs = t.ms
+    }
+  }
+  if (teeTimeMs === 0 && activeRound) {
+    const t = parseTeeTime(activeRound)
+    teeTime = t.display
+    teeTimeMs = t.ms
+  }
 
   // Status
   const statusName = (c.status?.type?.name ?? '').toLowerCase()
@@ -97,7 +113,7 @@ export function parseCompetitor(c: ESPNCompetitor): Player {
     id: c.id,
     position: c.order ?? 999,
     posDisplay: String(c.order ?? '—'),
-    name: c.athlete?.fullName ?? 'Unknown',
+    name,
     shortName: c.athlete?.shortName ?? '',
     country: c.athlete?.flag?.alt ?? '',
     flagUrl: c.athlete?.flag?.href ?? '',
@@ -157,7 +173,8 @@ export function parseTournamentData(data: ESPNResponse): {
     completed: type.completed ?? false,
   }
 
-  const raw = (competition.competitors ?? []).map(parseCompetitor)
+  const raw = (competition.competitors ?? []).map((c) => parseCompetitor(c, period))
+
   const players = applyTiedPositions(raw)
 
   return { meta, players }
