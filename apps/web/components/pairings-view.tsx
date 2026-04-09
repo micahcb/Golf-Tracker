@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import type { Player } from '@/lib/types'
 import { Flag, Score } from '@/components/golf-tracker-display'
+import { StarPlayerButton } from '@/components/starred-players'
 
 // ─── Pairings view ────────────────────────────────────────────────────────────
 interface PairingGroup {
@@ -48,6 +49,8 @@ export function PairingsView({
   onToggleFollow,
   showFollowToggle,
   onlyFollowed,
+  starredIds,
+  onToggleStar,
 }: {
   players: Player[]
   search: string
@@ -55,6 +58,8 @@ export function PairingsView({
   onToggleFollow: (key: string) => void
   showFollowToggle: boolean
   onlyFollowed?: boolean
+  starredIds: Set<string>
+  onToggleStar: (playerId: string) => void
 }) {
   const groups = useMemo(() => buildPairings(players), [players])
 
@@ -122,23 +127,39 @@ export function PairingsView({
                 </button>
               )}
             </div>
-            {group.players.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Flag url={p.flagUrl} country={p.country} />
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">{p.posDisplay}</div>
+            {group.players.map((p) => {
+              const starred = starredIds.has(p.id)
+              return (
+                <div
+                  key={p.id}
+                  className={[
+                    'flex items-center justify-between gap-3 rounded-lg -mx-1 px-1 py-1 border transition-colors',
+                    starred
+                      ? 'border-amber-500/45 bg-amber-500/[0.08] dark:bg-amber-500/15 shadow-sm shadow-amber-500/10'
+                      : 'border-transparent',
+                  ].join(' ')}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <StarPlayerButton starred={starred} onClick={() => onToggleStar(p.id)} />
+                    <Flag url={p.flagUrl} country={p.country} />
+                    <div className="min-w-0">
+                      <div
+                        className={`font-medium text-sm truncate ${starred ? 'text-amber-950 dark:text-amber-100' : ''}`}
+                      >
+                        {p.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{p.posDisplay}</div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <Score score={p.totalScore} bold />
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Thru {p.thru}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <Score score={p.totalScore} bold />
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Thru {p.thru}
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )
       })}

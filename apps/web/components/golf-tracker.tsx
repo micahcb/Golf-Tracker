@@ -6,6 +6,7 @@ import type { Player, TournamentMeta } from '@/lib/types'
 import { scoreClass, Score, Flag } from '@/components/golf-tracker-display'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
+import { useStarredPlayers, StarPlayerButton } from '@/components/starred-players'
 
 // ─── Refresh interval (ms) ────────────────────────────────────────────────────
 const REFRESH_MS = 60_000
@@ -49,10 +50,14 @@ function LeaderboardTable({
   players,
   meta,
   allPlayers,
+  starredIds,
+  onToggleStar,
 }: {
   players: Player[]
   meta: TournamentMeta | null
   allPlayers: Player[]
+  starredIds: Set<string>
+  onToggleStar: (playerId: string) => void
 }) {
   if (players.length === 0) {
     return (
@@ -98,7 +103,15 @@ function LeaderboardTable({
     if (cutBeforeIndex === i) {
       rows.push(<CutSeparatorRow key="cut-separator" label={cutLabel} />)
     }
-    rows.push(<PlayerRow key={player.id} player={player} even={i % 2 === 0} />)
+    rows.push(
+      <PlayerRow
+        key={player.id}
+        player={player}
+        even={i % 2 === 0}
+        starred={starredIds.has(player.id)}
+        onToggleStar={() => onToggleStar(player.id)}
+      />
+    )
   })
 
   return (
@@ -141,7 +154,17 @@ function LeaderboardTable({
   )
 }
 
-function PlayerRow({ player: p, even }: { player: Player; even: boolean }) {
+function PlayerRow({
+  player: p,
+  even,
+  starred,
+  onToggleStar,
+}: {
+  player: Player
+  even: boolean
+  starred: boolean
+  onToggleStar: () => void
+}) {
   const dimmed = p.status === 'cut' || p.status === 'withdrawn'
 
   return (
@@ -149,7 +172,7 @@ function PlayerRow({ player: p, even }: { player: Player; even: boolean }) {
       className={[
         'border-b border-border last:border-0 transition-colors',
         'hover:bg-muted/30',
-        even ? '' : 'bg-muted/[0.06]',
+        starred ? 'bg-amber-500/[0.06] dark:bg-amber-500/10' : even ? '' : 'bg-muted/[0.06]',
         dimmed ? 'opacity-40' : '',
       ]
         .filter(Boolean)
@@ -161,8 +184,11 @@ function PlayerRow({ player: p, even }: { player: Player; even: boolean }) {
       {/* Player */}
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
+          <StarPlayerButton starred={starred} onClick={onToggleStar} />
           <Flag url={p.flagUrl} country={p.country} />
-          <span className={`font-medium ${dimmed ? 'line-through decoration-muted-foreground' : ''}`}>
+          <span
+            className={`font-medium ${dimmed ? 'line-through decoration-muted-foreground' : ''} ${starred ? 'text-amber-950 dark:text-amber-100' : ''}`}
+          >
             {p.name}
           </span>
           <StatusBadge status={p.status} />
@@ -272,6 +298,7 @@ export function GolfTracker() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const { followedKeys, toggleFollowed } = useFollowedPairings()
+  const { starredIds, toggleStar } = useStarredPlayers()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -452,7 +479,13 @@ export function GolfTracker() {
       {/* Main content */}
       <main className="max-w-screen-xl mx-auto px-4 pb-12">
         {view === 'leaderboard' ? (
-          <LeaderboardTable players={filtered} meta={meta} allPlayers={players} />
+          <LeaderboardTable
+            players={filtered}
+            meta={meta}
+            allPlayers={players}
+            starredIds={starredIds}
+            onToggleStar={toggleStar}
+          />
         ) : (
           <PairingsView
             players={playersForPairings}
@@ -461,6 +494,8 @@ export function GolfTracker() {
             onToggleFollow={toggleFollowed}
             showFollowToggle
             onlyFollowed={view === 'followed'}
+            starredIds={starredIds}
+            onToggleStar={toggleStar}
           />
         )}
 
