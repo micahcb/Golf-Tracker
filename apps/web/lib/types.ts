@@ -71,6 +71,13 @@ export interface Round {
   rel: string | null       // relative to par, e.g. "-5"
 }
 
+export interface HoleScore {
+  hole: number             // hole number 1-18
+  strokes: number          // raw strokes taken
+  rel: string              // relative to par: "E", "-1", "+1" etc
+  type: string             // "BIRDIE", "PAR", "BOGEY", "EAGLE" etc
+}
+
 export interface Player {
   id: string
   position: number
@@ -82,6 +89,7 @@ export interface Player {
   totalScore: string       // e.g. "-12", "E", "+3"
   totalNum: number         // numeric version for sorting
   rounds: [Round, Round, Round, Round]
+  holeScores: HoleScore[]  // holes completed in the active round
   thru: string             // "F", "9", "—"
   teeTime: string          // formatted, e.g. "9:24 AM EDT"
   teeTimeMs: number        // epoch ms for sorting

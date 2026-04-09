@@ -4,6 +4,7 @@ import type {
   Player,
   PlayerStatus,
   Round,
+  HoleScore,
   TournamentMeta,
   ESPNResponse,
 } from './types'
@@ -86,6 +87,16 @@ export function parseCompetitor(c: ESPNCompetitor): Player {
     ? parseTeeTime(activeRound)
     : { display: '—', ms: 0 }
 
+  // Hole-by-hole scores for the active round
+  // scoreType.displayValue = relative-to-par delta ("E", "-1", "+1" etc)
+  // displayValue           = raw stroke count ("4", "3" etc) — do NOT use for colouring
+  const holeScores: HoleScore[] = (activeRound?.linescores ?? []).map((h) => ({
+    hole: h.period,
+    strokes: Math.round(h.value),
+    rel: h.scoreType?.displayValue ?? 'E',
+    type: h.scoreType?.displayValue ?? 'E',
+  }))
+
   // Status
   const statusName = (c.status?.type?.name ?? '').toLowerCase()
   let status: PlayerStatus = 'active'
@@ -104,6 +115,7 @@ export function parseCompetitor(c: ESPNCompetitor): Player {
     totalScore: c.score ?? 'E',
     totalNum: scoreToNum(c.score),
     rounds,
+    holeScores,
     thru,
     teeTime,
     teeTimeMs,

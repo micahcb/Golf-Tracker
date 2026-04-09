@@ -1,31 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { parseTournamentData } from '@/lib/espn'
 import type { Player, TournamentMeta } from '@/lib/types'
-import { scoreClass, Score, Flag } from '@/components/golf-tracker-display'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
+import { PlayerRowGroup } from '@/components/player-row'
 
 // ─── Refresh interval (ms) ────────────────────────────────────────────────────
 const REFRESH_MS = 60_000
-
-// ─── Status badge ─────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: Player['status'] }) {
-  if (status === 'cut')
-    return (
-      <span className="ml-1.5 text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-        CUT
-      </span>
-    )
-  if (status === 'withdrawn')
-    return (
-      <span className="ml-1.5 text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-        WD
-      </span>
-    )
-  return null
-}
 
 // ─── Cut separator row ────────────────────────────────────────────────────────
 function CutSeparatorRow({ label }: { label: string }) {
@@ -49,10 +32,14 @@ function LeaderboardTable({
   players,
   meta,
   allPlayers,
+  movementMap,
+  followedPlayerIds,
 }: {
   players: Player[]
   meta: TournamentMeta | null
   allPlayers: Player[]
+  movementMap: Map<string, number>
+  followedPlayerIds: Set<string>
 }) {
   if (players.length === 0) {
     return (
@@ -98,7 +85,15 @@ function LeaderboardTable({
     if (cutBeforeIndex === i) {
       rows.push(<CutSeparatorRow key="cut-separator" label={cutLabel} />)
     }
-    rows.push(<PlayerRow key={player.id} player={player} even={i % 2 === 0} />)
+    rows.push(
+      <PlayerRowGroup
+        key={player.id}
+        player={player}
+        even={i % 2 === 0}
+        movement={movementMap.get(player.id)}
+        isFollowed={followedPlayerIds.has(player.id)}
+      />
+    )
   })
 
   return (
@@ -138,64 +133,6 @@ function LeaderboardTable({
         <tbody>{rows}</tbody>
       </table>
     </div>
-  )
-}
-
-function PlayerRow({ player: p, even }: { player: Player; even: boolean }) {
-  const dimmed = p.status === 'cut' || p.status === 'withdrawn'
-
-  return (
-    <tr
-      className={[
-        'border-b border-border last:border-0 transition-colors',
-        'hover:bg-muted/30',
-        even ? '' : 'bg-muted/[0.06]',
-        dimmed ? 'opacity-40' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      {/* Position */}
-      <td className="py-3 px-4 font-mono text-xs text-muted-foreground">{p.posDisplay}</td>
-
-      {/* Player */}
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-2">
-          <Flag url={p.flagUrl} country={p.country} />
-          <span className={`font-medium ${dimmed ? 'line-through decoration-muted-foreground' : ''}`}>
-            {p.name}
-          </span>
-          <StatusBadge status={p.status} />
-        </div>
-      </td>
-
-      {/* Total score */}
-      <td className="py-3 px-3 text-center">
-        <Score score={p.totalScore} bold size="base" />
-      </td>
-
-      {/* Round scores */}
-      {p.rounds.map((r, idx) => (
-        <td key={idx} className="py-3 px-3 text-center">
-          {r.raw !== null ? (
-            <span
-              className={`text-xs ${r.rel ? scoreClass(r.rel) : 'text-muted-foreground'}`}
-              title={r.rel ? `${r.rel} (par relative)` : undefined}
-            >
-              {r.raw}
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-xs">—</span>
-          )}
-        </td>
-      ))}
-
-      {/* Thru */}
-      <td className="py-3 px-3 text-center text-xs text-muted-foreground">{p.thru}</td>
-
-      {/* Tee time */}
-      <td className="py-3 px-3 text-xs text-muted-foreground whitespace-nowrap">{p.teeTime}</td>
-    </tr>
   )
 }
 
@@ -268,10 +205,23 @@ export function GolfTracker() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState(REFRESH_MS / 1000)
 
+  // Movement tracking — snapshot positions from previous fetch
+  const prevPositionsRef = useRef<Map<string, number>>(new Map())
+  const [movementMap, setMovementMap] = useState<Map<string, number>>(new Map())
+
   // Controls
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const { followedKeys, toggleFollowed } = useFollowedPairings()
+
+  // Flatten followed pairing keys (sorted player-id strings) into a plain set of player IDs
+  const followedPlayerIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const key of followedKeys) {
+      for (const id of key.split(',')) ids.add(id.trim())
+    }
+    return ids
+  }, [followedKeys])
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -286,6 +236,20 @@ export function GolfTracker() {
         setError('No active tournament found. Check back during a PGA Tour event.')
         return
       }
+
+      // Compute position movement since last fetch
+      const newMovement = new Map<string, number>()
+      for (const p of parsed.players) {
+        const prev = prevPositionsRef.current.get(p.id)
+        if (prev !== undefined && prev !== p.position) {
+          newMovement.set(p.id, prev - p.position) // positive = moved up
+        }
+      }
+      // Snapshot current positions for next refresh
+      const nextSnapshot = new Map<string, number>()
+      for (const p of parsed.players) nextSnapshot.set(p.id, p.position)
+      prevPositionsRef.current = nextSnapshot
+      setMovementMap(newMovement)
 
       setMeta(parsed.meta)
       setPlayers(parsed.players)
@@ -447,7 +411,13 @@ export function GolfTracker() {
       {/* Main content */}
       <main className="max-w-screen-xl mx-auto px-4 pb-12">
         {view === 'leaderboard' ? (
-          <LeaderboardTable players={filtered} meta={meta} allPlayers={players} />
+          <LeaderboardTable
+            players={filtered}
+            meta={meta}
+            allPlayers={players}
+            movementMap={movementMap}
+            followedPlayerIds={followedPlayerIds}
+          />
         ) : (
           <PairingsView
             players={filtered}
