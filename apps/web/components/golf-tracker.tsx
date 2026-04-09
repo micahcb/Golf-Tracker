@@ -173,7 +173,7 @@ function PlayerRow({
       className={[
         'border-b border-border last:border-0 transition-colors',
         'hover:bg-muted/30',
-        starred ? 'bg-amber-500/[0.06] dark:bg-amber-500/10' : even ? '' : 'bg-muted/[0.06]',
+        starred ? '' : even ? '' : 'bg-muted/[0.06]',
         dimmed ? 'opacity-40' : '',
       ]
         .filter(Boolean)
@@ -188,7 +188,7 @@ function PlayerRow({
           <StarPlayerButton starred={starred} onClick={onToggleStar} />
           <Flag url={p.flagUrl} country={p.country} />
           <span
-            className={`font-medium ${dimmed ? 'line-through decoration-muted-foreground' : ''} ${starred ? 'text-amber-950 dark:text-amber-100' : ''}`}
+            className={`font-medium ${dimmed ? 'line-through decoration-muted-foreground' : ''} ${starred ? 'text-foreground' : ''}`}
           >
             {p.name}
           </span>
@@ -300,7 +300,7 @@ export function GolfTracker() {
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const { followedKeys, toggleFollowed } = useFollowedPairings()
   const { starredIds, toggleStar } = useStarredPlayers()
-  const { pairingPickKeys, togglePairingPick } = usePairingPicks()
+  const { pairingPickKeys, parlayPickKeys, togglePairingPick, toggleParlayPick } = usePairingPicks()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -500,6 +500,8 @@ export function GolfTracker() {
             onToggleStar={toggleStar}
             pairingPickKeys={pairingPickKeys}
             onTogglePairingPick={togglePairingPick}
+            parlayPickKeys={parlayPickKeys}
+            onToggleParlayPick={toggleParlayPick}
           />
         )}
 
@@ -511,7 +513,7 @@ export function GolfTracker() {
             <>
               <br />
               <span className="text-muted-foreground/80">
-                ★ tournament · ✦ your pick in this tee-time group (saved separately)
+                Rows: left bands only — amber ★ · violet ✦ · fuchsia P (in that order)
               </span>
             </>
           )}

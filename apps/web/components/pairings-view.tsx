@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import type { Player } from '@/lib/types'
 import { Flag, Score } from '@/components/golf-tracker-display'
 import { StarPlayerButton } from '@/components/starred-players'
-import { makePairingPickKey, PairingPickButton } from '@/components/pairing-picks'
+import { makePairingPickKey, PairingPickButton, ParlayPickButton } from '@/components/pairing-picks'
 
 // ─── Pairings view ────────────────────────────────────────────────────────────
 interface PairingGroup {
@@ -54,6 +54,8 @@ export function PairingsView({
   onToggleStar,
   pairingPickKeys,
   onTogglePairingPick,
+  parlayPickKeys,
+  onToggleParlayPick,
 }: {
   players: Player[]
   search: string
@@ -65,6 +67,8 @@ export function PairingsView({
   onToggleStar: (playerId: string) => void
   pairingPickKeys: Set<string>
   onTogglePairingPick: (pairingGroupKey: string, playerId: string) => void
+  parlayPickKeys: Set<string>
+  onToggleParlayPick: (pairingGroupKey: string, playerId: string) => void
 }) {
   const groups = useMemo(() => buildPairings(players), [players])
 
@@ -105,7 +109,16 @@ export function PairingsView({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="space-y-3">
+      {onlyFollowed && (
+        <p className="text-xs text-muted-foreground px-0.5">
+          Left bands (when set):{' '}
+          <span className="text-amber-500 dark:text-amber-400">amber</span> ★ ·{' '}
+          <span className="text-violet-600 dark:text-violet-400">violet</span> ✦ ·{' '}
+          <span className="text-fuchsia-600 dark:text-fuchsia-400">fuchsia</span> P
+        </p>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {filtered.map((group) => {
         const key = pairingKey(group.players)
         const isFollowed = followedKeys.has(key)
@@ -134,46 +147,50 @@ export function PairingsView({
             </div>
             {group.players.map((p) => {
               const starred = starredIds.has(p.id)
-              const pairingPicked = pairingPickKeys.has(makePairingPickKey(key, p.id))
+              const pickKey = makePairingPickKey(key, p.id)
+              const pairingPicked = pairingPickKeys.has(pickKey)
+              const parlayPicked = parlayPickKeys.has(pickKey)
               return (
                 <div
                   key={p.id}
-                  className={[
-                    'flex items-center justify-between gap-3 rounded-lg -mx-1 px-1 py-1 border transition-colors',
-                    starred
-                      ? 'border-amber-500/45 bg-amber-500/[0.08] dark:bg-amber-500/15 shadow-sm shadow-amber-500/10'
-                      : 'border-transparent',
-                    pairingPicked
-                      ? 'shadow-[inset_3px_0_0_0] shadow-violet-500/60 dark:shadow-violet-400/55'
-                      : '',
-                  ].join(' ')}
+                  className="flex min-h-[2.75rem] items-stretch rounded-lg -mx-1 overflow-hidden"
                 >
-                  <div className="flex items-center gap-0.5 min-w-0">
-                    <StarPlayerButton starred={starred} onClick={() => onToggleStar(p.id)} />
-                    <PairingPickButton
-                      picked={pairingPicked}
-                      onClick={() => onTogglePairingPick(key, p.id)}
-                    />
-                    <Flag url={p.flagUrl} country={p.country} />
-                    <div className="min-w-0">
-                      <div
-                        className={`font-medium text-sm truncate ${
-                          starred
-                            ? 'text-amber-950 dark:text-amber-100'
-                            : pairingPicked
-                              ? 'text-violet-950 dark:text-violet-100'
-                              : ''
-                        }`}
-                      >
-                        {p.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{p.posDisplay}</div>
-                    </div>
+                  <div className="flex shrink-0 flex-row" aria-hidden>
+                    {starred && (
+                      <div className="w-[3px] self-stretch bg-amber-400 dark:bg-amber-500" />
+                    )}
+                    {pairingPicked && (
+                      <div className="w-[3px] self-stretch bg-violet-500 dark:bg-violet-400" />
+                    )}
+                    {parlayPicked && (
+                      <div className="w-[3px] self-stretch bg-fuchsia-500 dark:bg-fuchsia-400" />
+                    )}
                   </div>
-                  <div className="text-right shrink-0">
-                    <Score score={p.totalScore} bold />
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Thru {p.thru}
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1">
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <StarPlayerButton starred={starred} onClick={() => onToggleStar(p.id)} />
+                      <PairingPickButton
+                        picked={pairingPicked}
+                        onClick={() => onTogglePairingPick(key, p.id)}
+                      />
+                      {onlyFollowed && (
+                        <ParlayPickButton
+                          active={parlayPicked}
+                          disabled={!pairingPicked}
+                          onClick={() => onToggleParlayPick(key, p.id)}
+                        />
+                      )}
+                      <Flag url={p.flagUrl} country={p.country} />
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate text-foreground">{p.name}</div>
+                        <div className="text-xs text-muted-foreground">{p.posDisplay}</div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Score score={p.totalScore} bold />
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Thru {p.thru}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -182,6 +199,7 @@ export function PairingsView({
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

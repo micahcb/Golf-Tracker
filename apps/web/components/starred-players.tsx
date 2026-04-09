@@ -55,8 +55,8 @@ export function StarPlayerButton({
       }}
       className={`shrink-0 text-base leading-none px-0.5 py-0.5 rounded transition-colors ${
         starred
-          ? 'text-amber-500 hover:text-amber-400'
-          : 'text-muted-foreground/70 hover:text-amber-500/90'
+          ? 'text-amber-600/90 dark:text-amber-400/90 hover:text-amber-600 dark:hover:text-amber-300'
+          : 'text-muted-foreground/70 hover:text-amber-600/70 dark:hover:text-amber-400/70'
       }`}
     >
       {starred ? '★' : '☆'}
