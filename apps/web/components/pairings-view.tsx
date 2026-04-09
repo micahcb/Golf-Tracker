@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import type { Player } from '@/lib/types'
 import { Flag, Score } from '@/components/golf-tracker-display'
 import { StarPlayerButton } from '@/components/starred-players'
+import { makePairingPickKey, PairingPickButton } from '@/components/pairing-picks'
 
 // ─── Pairings view ────────────────────────────────────────────────────────────
 interface PairingGroup {
@@ -51,6 +52,8 @@ export function PairingsView({
   onlyFollowed,
   starredIds,
   onToggleStar,
+  pairingPickKeys,
+  onTogglePairingPick,
 }: {
   players: Player[]
   search: string
@@ -60,6 +63,8 @@ export function PairingsView({
   onlyFollowed?: boolean
   starredIds: Set<string>
   onToggleStar: (playerId: string) => void
+  pairingPickKeys: Set<string>
+  onTogglePairingPick: (pairingGroupKey: string, playerId: string) => void
 }) {
   const groups = useMemo(() => buildPairings(players), [players])
 
@@ -129,6 +134,7 @@ export function PairingsView({
             </div>
             {group.players.map((p) => {
               const starred = starredIds.has(p.id)
+              const pairingPicked = pairingPickKeys.has(makePairingPickKey(key, p.id))
               return (
                 <div
                   key={p.id}
@@ -137,14 +143,27 @@ export function PairingsView({
                     starred
                       ? 'border-amber-500/45 bg-amber-500/[0.08] dark:bg-amber-500/15 shadow-sm shadow-amber-500/10'
                       : 'border-transparent',
+                    pairingPicked
+                      ? 'shadow-[inset_3px_0_0_0] shadow-violet-500/60 dark:shadow-violet-400/55'
+                      : '',
                   ].join(' ')}
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-0.5 min-w-0">
                     <StarPlayerButton starred={starred} onClick={() => onToggleStar(p.id)} />
+                    <PairingPickButton
+                      picked={pairingPicked}
+                      onClick={() => onTogglePairingPick(key, p.id)}
+                    />
                     <Flag url={p.flagUrl} country={p.country} />
                     <div className="min-w-0">
                       <div
-                        className={`font-medium text-sm truncate ${starred ? 'text-amber-950 dark:text-amber-100' : ''}`}
+                        className={`font-medium text-sm truncate ${
+                          starred
+                            ? 'text-amber-950 dark:text-amber-100'
+                            : pairingPicked
+                              ? 'text-violet-950 dark:text-violet-100'
+                              : ''
+                        }`}
                       >
                         {p.name}
                       </div>

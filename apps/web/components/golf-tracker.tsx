@@ -7,6 +7,7 @@ import { scoreClass, Score, Flag } from '@/components/golf-tracker-display'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
 import { useStarredPlayers, StarPlayerButton } from '@/components/starred-players'
+import { usePairingPicks } from '@/components/pairing-picks'
 
 // ─── Refresh interval (ms) ────────────────────────────────────────────────────
 const REFRESH_MS = 60_000
@@ -299,6 +300,7 @@ export function GolfTracker() {
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const { followedKeys, toggleFollowed } = useFollowedPairings()
   const { starredIds, toggleStar } = useStarredPlayers()
+  const { pairingPickKeys, togglePairingPick } = usePairingPicks()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -496,6 +498,8 @@ export function GolfTracker() {
             onlyFollowed={view === 'followed'}
             starredIds={starredIds}
             onToggleStar={toggleStar}
+            pairingPickKeys={pairingPickKeys}
+            onTogglePairingPick={togglePairingPick}
           />
         )}
 
@@ -503,6 +507,14 @@ export function GolfTracker() {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Data via ESPN · auto-refreshes every 60 s · press{' '}
           <kbd className="font-mono bg-muted px-1 rounded">D</kbd> to toggle dark mode
+          {view !== 'leaderboard' && (
+            <>
+              <br />
+              <span className="text-muted-foreground/80">
+                ★ tournament · ✦ your pick in this tee-time group (saved separately)
+              </span>
+            </>
+          )}
         </p>
       </main>
     </div>
