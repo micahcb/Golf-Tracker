@@ -222,7 +222,14 @@ export function GolfTracker() {
   const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
   const { followedKeys, toggleFollowed } = useFollowedPairings()
   const { starredIds, toggleStar } = useStarredPlayers()
-  const { pairingPickKeys, parlayPickKeys, togglePairingPick, toggleParlayPick } = usePairingPicks()
+  const {
+    pairingPickKeys,
+    parlays,
+    parlayLegLookup,
+    togglePairingPick,
+    saveParlay,
+    deleteParlay,
+  } = usePairingPicks()
 
   // Flatten followed pairing keys (sorted player-id strings) into a plain set of player IDs
   const followedPlayerIds = useMemo(() => {
@@ -447,8 +454,10 @@ export function GolfTracker() {
             onToggleStar={toggleStar}
             pairingPickKeys={pairingPickKeys}
             onTogglePairingPick={togglePairingPick}
-            parlayPickKeys={parlayPickKeys}
-            onToggleParlayPick={toggleParlayPick}
+            parlays={parlays}
+            parlayLegLookup={parlayLegLookup}
+            onSaveParlay={saveParlay}
+            onDeleteParlay={deleteParlay}
           />
         )}
 
@@ -460,7 +469,7 @@ export function GolfTracker() {
             <>
               <br />
               <span className="text-muted-foreground/80">
-                Rows: left bands only — amber ★ · violet ✦ · fuchsia P (in that order)
+                Followed rows: amber ★ · violet ✦ · colored stripe matches each parlay (tap P to add legs).
               </span>
             </>
           )}

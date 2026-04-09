@@ -1,10 +1,17 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Player } from '@/lib/types'
 import { Flag, Score } from '@/components/golf-tracker-display'
 import { StarPlayerButton } from '@/components/starred-players'
-import { makePairingPickKey, PairingPickButton, ParlayPickButton } from '@/components/pairing-picks'
+import {
+  makePairingPickKey,
+  PairingPickButton,
+  ParlayPickButton,
+  PARLAY_PALETTE,
+  type ParlaySaved,
+} from '@/components/pairing-picks'
+import { ParlayLegsModal } from '@/components/parlay-modal'
 
 // ─── Pairings view ────────────────────────────────────────────────────────────
 interface PairingGroup {
@@ -54,8 +61,10 @@ export function PairingsView({
   onToggleStar,
   pairingPickKeys,
   onTogglePairingPick,
-  parlayPickKeys,
-  onToggleParlayPick,
+  parlays,
+  parlayLegLookup,
+  onSaveParlay,
+  onDeleteParlay,
 }: {
   players: Player[]
   search: string
@@ -67,9 +76,16 @@ export function PairingsView({
   onToggleStar: (playerId: string) => void
   pairingPickKeys: Set<string>
   onTogglePairingPick: (pairingGroupKey: string, playerId: string) => void
-  parlayPickKeys: Set<string>
-  onToggleParlayPick: (pairingGroupKey: string, playerId: string) => void
+  parlays: ParlaySaved[]
+  parlayLegLookup: Map<string, { parlayId: string; colorIndex: number }>
+  onSaveParlay: (editingId: string | null, legs: string[]) => void
+  onDeleteParlay: (id: string) => void
 }) {
+  const [parlayModal, setParlayModal] = useState<{
+    anchorPickKey: string
+    editingParlayId: string | null
+  } | null>(null)
+
   const groups = useMemo(() => buildPairings(players), [players])
 
   const filtered = useMemo(() => {
@@ -112,11 +128,24 @@ export function PairingsView({
     <div className="space-y-3">
       {onlyFollowed && (
         <p className="text-xs text-muted-foreground px-0.5">
-          Left bands (when set):{' '}
-          <span className="text-amber-500 dark:text-amber-400">amber</span> ★ ·{' '}
-          <span className="text-violet-600 dark:text-violet-400">violet</span> ✦ ·{' '}
-          <span className="text-fuchsia-600 dark:text-fuchsia-400">fuchsia</span> P
+          Left bands: <span className="text-amber-500 dark:text-amber-400">amber</span> ★ ·{' '}
+          <span className="text-violet-600 dark:text-violet-400">violet</span> ✦ · parlay stripe matches{' '}
+          <span className="font-medium">P</span> color (each parlay has its own).
         </p>
+      )}
+      {parlayModal && (
+        <ParlayLegsModal
+          key={`${parlayModal.anchorPickKey}-${parlayModal.editingParlayId ?? 'new'}`}
+          open
+          onClose={() => setParlayModal(null)}
+          anchorPickKey={parlayModal.anchorPickKey}
+          editingParlayId={parlayModal.editingParlayId}
+          pairingPickKeys={pairingPickKeys}
+          parlays={parlays}
+          allPlayers={players}
+          onSave={onSaveParlay}
+          onDeleteParlay={onDeleteParlay}
+        />
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {filtered.map((group) => {
@@ -149,7 +178,11 @@ export function PairingsView({
               const starred = starredIds.has(p.id)
               const pickKey = makePairingPickKey(key, p.id)
               const pairingPicked = pairingPickKeys.has(pickKey)
-              const parlayPicked = parlayPickKeys.has(pickKey)
+              const parlayInfo = parlayLegLookup.get(pickKey)
+              const parlayPalette =
+                parlayInfo != null
+                  ? PARLAY_PALETTE[parlayInfo.colorIndex % PARLAY_PALETTE.length]
+                  : undefined
               return (
                 <div
                   key={p.id}
@@ -162,8 +195,8 @@ export function PairingsView({
                     {pairingPicked && (
                       <div className="w-[3px] self-stretch bg-violet-500 dark:bg-violet-400" />
                     )}
-                    {parlayPicked && (
-                      <div className="w-[3px] self-stretch bg-fuchsia-500 dark:bg-fuchsia-400" />
+                    {parlayPalette && (
+                      <div className={`w-[3px] self-stretch ${parlayPalette.stripe}`} />
                     )}
                   </div>
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1">
@@ -175,9 +208,15 @@ export function PairingsView({
                       />
                       {onlyFollowed && (
                         <ParlayPickButton
-                          active={parlayPicked}
+                          inParlay={parlayInfo != null}
                           disabled={!pairingPicked}
-                          onClick={() => onToggleParlayPick(key, p.id)}
+                          palette={parlayPalette}
+                          onClick={() =>
+                            setParlayModal({
+                              anchorPickKey: pickKey,
+                              editingParlayId: parlayInfo?.parlayId ?? null,
+                            })
+                          }
                         />
                       )}
                       <Flag url={p.flagUrl} country={p.country} />
