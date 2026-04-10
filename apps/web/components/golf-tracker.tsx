@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { parseTournamentData } from '@/lib/espn'
 import logoLightTheme from '@/app/Black.png'
 import logoDarkTheme from '@/app/White.png'
+import mastersLogo from '@/app/Masters.webp'
 import type { Player, TournamentMeta } from '@/lib/types'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
@@ -14,6 +15,12 @@ import { PlayerRowGroup } from '@/components/player-row'
 
 // ─── Refresh interval (ms) ────────────────────────────────────────────────────
 const REFRESH_MS = 60_000
+
+function isMastersTournament(meta: TournamentMeta | null): boolean {
+  if (!meta) return false
+  const label = `${meta.name} ${meta.shortName}`.toLowerCase()
+  return label.includes('masters')
+}
 
 // ─── Cut separator row ────────────────────────────────────────────────────────
 function CutSeparatorRow({ label }: { label: string }) {
@@ -208,8 +215,24 @@ function Header({
               onClick={() => setTournamentOpen((o) => !o)}
               className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg py-1.5 pl-0 pr-1 text-left hover:bg-muted/50 transition-colors"
             >
-              <span className="truncate text-sm font-medium text-foreground">
-                {meta?.name ?? 'Tournament'}
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                {isMastersTournament(meta) && (
+                  <span
+                    className="relative h-8 w-[2.5rem] shrink-0 overflow-hidden rounded-lg"
+                    aria-hidden
+                  >
+                    <Image
+                      src={mastersLogo}
+                      alt=""
+                      fill
+                      sizes="72px"
+                      className="object-contain"
+                    />
+                  </span>
+                )}
+                <span className="truncate text-sm font-medium text-foreground">
+                  {meta?.name ?? 'Tournament'}
+                </span>
               </span>
               <svg
                 className={`shrink-0 size-4 text-muted-foreground transition-transform ${
