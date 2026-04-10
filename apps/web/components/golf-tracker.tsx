@@ -422,9 +422,33 @@ export function GolfTracker() {
     return 'None of your starred players are in this field.'
   }, [starredIds.size, search])
 
-  /** Cut/WD only — pairings group by tee time; search filters groups inside PairingsView. */
+  /** Pairings order by current round score (not tournament total). */
   const playersForPairings = useMemo(() => {
-    return players
+    const parseRoundRelToNum = (rel: string | null): number | null => {
+      if (!rel) return null
+      const normalized = rel.trim().toUpperCase()
+      if (normalized === 'E') return 0
+      const value = Number(normalized)
+      return Number.isFinite(value) ? value : null
+    }
+
+    const latestRoundNum = (p: Player): number | null => {
+      const latestRound = [...p.rounds].reverse().find((r) => r.raw !== null) ?? null
+      return parseRoundRelToNum(latestRound?.rel ?? null)
+    }
+
+    return [...players].sort((a, b) => {
+      const aRound = latestRoundNum(a)
+      const bRound = latestRoundNum(b)
+
+      // Lower relative score is better (e.g. -3 before +1); unknown goes last.
+      if (aRound === null && bRound !== null) return 1
+      if (aRound !== null && bRound === null) return -1
+      if (aRound !== null && bRound !== null && aRound !== bRound) return aRound - bRound
+
+      if (a.totalNum !== b.totalNum) return a.totalNum - b.totalNum
+      return a.position - b.position
+    })
   }, [players])
 
   // ── Render states ──────────────────────────────────────────────────────────
