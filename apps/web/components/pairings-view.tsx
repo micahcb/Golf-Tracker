@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { Player } from '@/lib/types'
-import { Flag, Score } from '@/components/golf-tracker-display'
+import { Flag, scoreClass } from '@/components/golf-tracker-display'
 import { StarPlayerButton } from '@/components/starred-players'
 import {
   makePairingPickKey,
@@ -179,6 +179,8 @@ export function PairingsView({
               const starred = starredIds.has(p.id)
               const pickKey = makePairingPickKey(key, p.id)
               const pairingPicked = pairingPickKeys.has(pickKey)
+              const latestRound = [...p.rounds].reverse().find((r) => r.raw !== null) ?? null
+              const roundDisplay = latestRound?.rel ?? '—'
               const parlayInfo = parlayLegLookup.get(pickKey)
               const parlayPalette =
                 parlayInfo != null
@@ -222,7 +224,13 @@ export function PairingsView({
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <Score score={p.totalScore} bold />
+                      <span
+                        className={`text-base font-semibold ${
+                          latestRound?.rel ? scoreClass(latestRound.rel) : 'text-muted-foreground'
+                        }`}
+                      >
+                        {roundDisplay}
+                      </span>
                       <div className="text-xs text-muted-foreground mt-0.5">
                         Thru {p.thru}
                       </div>

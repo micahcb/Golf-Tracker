@@ -45,6 +45,8 @@ function PlayerRow({
   onToggle: () => void
 }) {
   const dimmed = p.status === 'cut' || p.status === 'withdrawn'
+  const latestRoundIdx = p.rounds.reduce((latest, r, idx) => (r.raw !== null ? idx : latest), -1)
+  const isRoundInProgress = p.status === 'active' && p.thru !== 'F'
 
   return (
     <tr
@@ -97,12 +99,18 @@ function PlayerRow({
       {p.rounds.map((r, idx) => (
         <td key={idx} className="py-3 px-3 text-center">
           {r.raw !== null ? (
-            <span
-              className={`text-xs ${r.rel ? scoreClass(r.rel) : 'text-muted-foreground'}`}
-              title={r.rel ? `${r.rel} (par relative)` : undefined}
-            >
-              {r.raw}
-            </span>
+            (() => {
+              const showRelative = isRoundInProgress && idx === latestRoundIdx && r.rel != null
+              const display = showRelative ? r.rel : String(r.raw)
+              return (
+                <span
+                  className={`text-xs ${r.rel ? scoreClass(r.rel) : 'text-muted-foreground'}`}
+                  title={showRelative && r.rel ? `${r.rel} (par relative)` : undefined}
+                >
+                  {display}
+                </span>
+              )
+            })()
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           )}
