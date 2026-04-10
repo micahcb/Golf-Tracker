@@ -12,6 +12,7 @@ import {
   type ParlaySaved,
 } from '@/components/pairing-picks'
 import { ParlayLegsModal } from '@/components/parlay-modal'
+import { PairingRowAccentStripes } from '@/components/followed-pairings'
 
 // ─── Pairings view ────────────────────────────────────────────────────────────
 interface PairingGroup {
@@ -188,17 +189,12 @@ export function PairingsView({
                   key={p.id}
                   className="flex min-h-[2.75rem] items-stretch rounded-lg -mx-1 overflow-hidden"
                 >
-                  <div className="flex shrink-0 flex-row" aria-hidden>
-                    {starred && (
-                      <div className="w-[3px] self-stretch bg-amber-400 dark:bg-amber-500" />
-                    )}
-                    {pairingPicked && (
-                      <div className="w-[3px] self-stretch bg-violet-500 dark:bg-violet-400" />
-                    )}
-                    {parlayPalette && (
-                      <div className={`w-[3px] self-stretch ${parlayPalette.stripe}`} />
-                    )}
-                  </div>
+                  <PairingRowAccentStripes
+                    starred={starred}
+                    pairingPicked={pairingPicked}
+                    parlayStripeClass={parlayPalette?.stripe}
+                    inParlay={parlayInfo != null}
+                  />
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1">
                     <div className="flex items-center gap-0.5 min-w-0">
                       <StarPlayerButton starred={starred} onClick={() => onToggleStar(p.id)} />

@@ -38,6 +38,28 @@ export function useStarredPlayers() {
   return { starredIds, toggleStar }
 }
 
+export function StarredPlayersTabButton({
+  selected,
+  onClick,
+}: {
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={`px-3 h-full border-l border-input transition-colors ${
+        selected
+          ? 'bg-primary text-primary-foreground'
+          : 'hover:bg-muted text-foreground'
+      }`}
+      onClick={onClick}
+    >
+      Starred
+    </button>
+  )
+}
+
 export function StarPlayerButton({
   starred,
   onClick,

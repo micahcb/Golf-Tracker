@@ -5,7 +5,7 @@ import { parseTournamentData } from '@/lib/espn'
 import type { Player, TournamentMeta } from '@/lib/types'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
-import { useStarredPlayers } from '@/components/starred-players'
+import { useStarredPlayers, StarredPlayersTabButton } from '@/components/starred-players'
 import { usePairingPicks } from '@/components/pairing-picks'
 import { PlayerRowGroup } from '@/components/player-row'
 
@@ -38,6 +38,7 @@ function LeaderboardTable({
   followedPlayerIds,
   starredIds,
   onToggleStar,
+  emptyMessage,
 }: {
   players: Player[]
   meta: TournamentMeta | null
@@ -46,11 +47,12 @@ function LeaderboardTable({
   followedPlayerIds: Set<string>
   starredIds: Set<string>
   onToggleStar: (playerId: string) => void
+  emptyMessage?: string
 }) {
   if (players.length === 0) {
     return (
       <div className="text-center py-20 text-muted-foreground text-sm">
-        No players match your search.
+        {emptyMessage ?? 'No players match your search.'}
       </div>
     )
   }
@@ -219,7 +221,9 @@ export function GolfTracker() {
 
   // Controls
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<'leaderboard' | 'pairings' | 'followed'>('leaderboard')
+  const [view, setView] = useState<'leaderboard' | 'starred' | 'pairings' | 'followed'>(
+    'leaderboard'
+  )
   const { followedKeys, toggleFollowed } = useFollowedPairings()
   const { starredIds, toggleStar } = useStarredPlayers()
   const {
@@ -317,6 +321,19 @@ export function GolfTracker() {
     return list
   }, [players, search])
 
+  const starredFiltered = useMemo(
+    () => filtered.filter((p) => starredIds.has(p.id)),
+    [filtered, starredIds]
+  )
+
+  const starredEmptyMessage = useMemo(() => {
+    if (starredIds.size === 0) {
+      return 'Star players from the leaderboard (☆) to track them here.'
+    }
+    if (search.trim()) return 'No players match your search.'
+    return 'None of your starred players are in this field.'
+  }, [starredIds.size, search])
+
   /** Cut/WD only — pairings group by tee time; search filters groups inside PairingsView. */
   const playersForPairings = useMemo(() => {
     return players
@@ -406,6 +423,10 @@ export function GolfTracker() {
           >
             Leaderboard
           </button>
+          <StarredPlayersTabButton
+            selected={view === 'starred'}
+            onClick={() => setView('starred')}
+          />
           <button
             className={`px-3 h-full border-l border-input transition-colors ${
               view === 'pairings'
@@ -425,22 +446,24 @@ export function GolfTracker() {
         {/* Result count */}
         {search && (
           <span className="text-xs text-muted-foreground">
-            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+            {(view === 'starred' ? starredFiltered : filtered).length} result
+            {(view === 'starred' ? starredFiltered : filtered).length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
 
       {/* Main content */}
       <main className="max-w-screen-xl mx-auto px-4 pb-12">
-        {view === 'leaderboard' ? (
+        {view === 'leaderboard' || view === 'starred' ? (
           <LeaderboardTable
-            players={filtered}
+            players={view === 'starred' ? starredFiltered : filtered}
             meta={meta}
             allPlayers={players}
             movementMap={movementMap}
             followedPlayerIds={followedPlayerIds}
             starredIds={starredIds}
             onToggleStar={toggleStar}
+            emptyMessage={view === 'starred' ? starredEmptyMessage : undefined}
           />
         ) : (
           <PairingsView
@@ -465,7 +488,7 @@ export function GolfTracker() {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Data via ESPN · auto-refreshes every 60 s · press{' '}
           <kbd className="font-mono bg-muted px-1 rounded">D</kbd> to toggle dark mode
-          {view !== 'leaderboard' && (
+          {(view === 'pairings' || view === 'followed') && (
             <>
               <br />
               <span className="text-muted-foreground/80">
