@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import { parseTournamentData } from '@/lib/espn'
+import logoLightTheme from '@/app/Black.png'
+import logoDarkTheme from '@/app/White.png'
 import type { Player, TournamentMeta } from '@/lib/types'
 import { PairingsView } from '@/components/pairings-view'
 import { useFollowedPairings, FollowedPairingsTabButton } from '@/components/followed-pairings'
@@ -160,30 +163,92 @@ function Header({
   onRefresh: () => void
   refreshing: boolean
 }) {
+  const [tournamentOpen, setTournamentOpen] = useState(true)
+  const tournamentPanelId = 'header-tournament-panel'
+
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-screen-xl mx-auto px-4 py-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight leading-tight">
-            {meta?.name ?? 'Golf Tracker'}
-          </h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {meta && (
-              <span className="text-sm text-muted-foreground">
-                Round {meta.round}
-                {meta.roundDescription ? ` · ${meta.roundDescription}` : ''}
+        <div className="min-w-0 flex-1">
+          <div className="w-full border-b border-border pb-2">
+            <div className="flex items-center gap-3">
+              <div
+                className="relative h-9 w-9 shrink-0"
+                aria-hidden
+              >
+                <Image
+                  src={logoLightTheme}
+                  alt=""
+                  fill
+                  sizes="36px"
+                  className="object-contain dark:hidden"
+                  priority
+                />
+                <Image
+                  src={logoDarkTheme}
+                  alt=""
+                  fill
+                  sizes="36px"
+                  className="hidden object-contain dark:block"
+                  priority
+                />
+              </div>
+              <h1 className="text-xl font-semibold tracking-tight leading-tight">
+                Dimples
+              </h1>
+            </div>
+          </div>
+
+          <div className="pt-2 ml-12 min-w-0">
+            <button
+              type="button"
+              id="header-tournament-toggle"
+              aria-expanded={tournamentOpen}
+              aria-controls={tournamentPanelId}
+              onClick={() => setTournamentOpen((o) => !o)}
+              className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg py-1.5 pl-0 pr-1 text-left hover:bg-muted/50 transition-colors"
+            >
+              <span className="truncate text-sm font-medium text-foreground">
+                {meta?.name ?? 'Tournament'}
               </span>
-            )}
-            {!meta?.completed && (
-              <span className="flex items-center gap-1 text-[11px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                LIVE
-              </span>
-            )}
-            {meta?.completed && (
-              <span className="text-[11px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                FINAL
-              </span>
+              <svg
+                className={`shrink-0 size-4 text-muted-foreground transition-transform ${
+                  tournamentOpen ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {tournamentOpen && (
+              <div
+                id={tournamentPanelId}
+                role="region"
+                aria-labelledby="header-tournament-toggle"
+                className="flex flex-wrap items-center gap-2 mt-1"
+              >
+                {meta && (
+                  <span className="text-sm text-muted-foreground">
+                    Round {meta.round}
+                    {meta.roundDescription ? ` · ${meta.roundDescription}` : ''}
+                  </span>
+                )}
+                {!meta?.completed && meta && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    LIVE
+                  </span>
+                )}
+                {meta?.completed && (
+                  <span className="text-[11px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    FINAL
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
