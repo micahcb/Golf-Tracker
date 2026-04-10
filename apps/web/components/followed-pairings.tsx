@@ -38,7 +38,7 @@ export function PairingRowAccentStripes({
       {segments.map((cls, i) => (
         <div
           key={i}
-          className={`${STRIPE_WIDTH} min-h-full shrink-0 self-stretch ${cls} ${
+          className={`${STRIPE_WIDTH} min-h-full shrink-0 self-stretch opacity-70 ${cls} ${
             i < segments.length - 1 ? 'border-r-2 border-black dark:border-black' : ''
           }`}
         />
