@@ -312,6 +312,10 @@ export function GolfTracker() {
   const [view, setView] = useState<'leaderboard' | 'starred' | 'pairings' | 'followed'>(
     'leaderboard'
   )
+  const selectView = useCallback((next: 'leaderboard' | 'starred' | 'pairings' | 'followed') => {
+    setView(next)
+    setSearch('')
+  }, [])
   const { followedKeys, toggleFollowed } = useFollowedPairings()
   const { starredIds, toggleStar } = useStarredPlayers()
   const {
@@ -531,13 +535,13 @@ export function GolfTracker() {
                 ? 'bg-primary text-primary-foreground'
                 : 'hover:bg-muted text-foreground'
             }`}
-            onClick={() => setView('leaderboard')}
+            onClick={() => selectView('leaderboard')}
           >
             Leaderboard
           </button>
           <StarredPlayersTabButton
             selected={view === 'starred'}
-            onClick={() => setView('starred')}
+            onClick={() => selectView('starred')}
           />
           <button
             className={`px-3 h-full border-l border-input transition-colors ${
@@ -545,13 +549,13 @@ export function GolfTracker() {
                 ? 'bg-primary text-primary-foreground'
                 : 'hover:bg-muted text-foreground'
             }`}
-            onClick={() => setView('pairings')}
+            onClick={() => selectView('pairings')}
           >
             Pairings
           </button>
           <FollowedPairingsTabButton
             selected={view === 'followed'}
-            onClick={() => setView('followed')}
+            onClick={() => selectView('followed')}
           />
         </div>
 
