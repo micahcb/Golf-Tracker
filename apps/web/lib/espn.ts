@@ -152,16 +152,20 @@ export function applyTiedPositions(players: Player[]): Player[] {
   let i = 0
 
   while (i < sorted.length) {
-    const score = sorted[i].totalNum
+    const leader = sorted[i]
+    if (!leader) break
+
+    const score = leader.totalNum
     let j = i + 1
-    while (j < sorted.length && sorted[j].totalNum === score) j++
+    while (j < sorted.length && sorted[j]?.totalNum === score) j++
 
     const tieCount = j - i
     const position = nextRank
     const posDisplay = tieCount > 1 ? `T${position}` : String(position)
 
     for (let k = i; k < j; k++) {
-      ranked.push({ ...sorted[k], position, posDisplay })
+      const player = sorted[k]
+      if (player) ranked.push({ ...player, position, posDisplay })
     }
 
     nextRank += tieCount
