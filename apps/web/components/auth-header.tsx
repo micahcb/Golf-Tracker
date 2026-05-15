@@ -1,10 +1,15 @@
 import Link from "next/link"
 
-import { createClient } from "@/lib/supabase/server"
 import { signOut } from "@/app/actions/auth"
+import { createClient } from "@/lib/supabase/server"
+import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Button } from "@workspace/ui/components/button"
 
 export async function AuthHeader() {
+  if (!isSupabaseConfigured()) {
+    return null
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

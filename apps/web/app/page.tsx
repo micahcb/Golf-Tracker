@@ -1,5 +1,10 @@
-import { GolfTracker } from '@/components/golf-tracker'
+import { GolfTracker } from "@/components/golf-tracker"
+import { GolfTrackerPersistenceProvider } from "@/components/golf-tracker-persistence"
 
 export default function Page() {
-  return <GolfTracker />
+  return (
+    <GolfTrackerPersistenceProvider>
+      <GolfTracker />
+    </GolfTrackerPersistenceProvider>
+  )
 }
