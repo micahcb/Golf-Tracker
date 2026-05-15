@@ -69,14 +69,15 @@ export function FollowedPairingsTabButton({
   return (
     <button
       type="button"
-      className={`px-3 h-full border-l border-input transition-colors ${
+      className={`min-w-0 shrink px-1.5 h-full border-l border-input transition-colors sm:px-2 md:px-3 ${
         selected
           ? "bg-primary text-primary-foreground"
           : "hover:bg-muted text-foreground"
       }`}
       onClick={onClick}
     >
-      Followed Pairings
+      <span className="md:hidden">Followed</span>
+      <span className="hidden md:inline">Followed Pairings</span>
     </button>
   )
 }
@@ -91,7 +92,7 @@ export function StarredPlayersTabButton({
   return (
     <button
       type="button"
-      className={`px-3 h-full border-l border-input transition-colors ${
+      className={`min-w-0 shrink px-1.5 h-full border-l border-input transition-colors sm:px-2 md:px-3 ${
         selected
           ? "bg-primary text-primary-foreground"
           : "hover:bg-muted text-foreground"

@@ -410,17 +410,17 @@ function Header({
       />
 
       {isMobile && pillVisible && (
-        <button
-          type="button"
-          aria-label="Close navigation"
-          className="fixed inset-0 z-[45] bg-background/60 backdrop-blur-[2px]"
+        <div
+          role="presentation"
+          aria-hidden
+          className="fixed inset-0 z-40 bg-background/60 backdrop-blur-[2px]"
           onClick={closePill}
         />
       )}
 
       <header
         aria-hidden={!pillVisible}
-        className={`fixed z-40 mx-auto w-auto max-w-screen-xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
+        className={`fixed z-50 mx-auto w-auto max-w-screen-xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
           isMobile && pillVisible
             ? 'left-2 right-2 bottom-[calc(1rem+2.75rem+env(safe-area-inset-bottom,0px))] top-auto'
             : 'left-3 right-3 top-[calc(env(safe-area-inset-top,0px)+2.75rem+10px)]'
@@ -447,7 +447,7 @@ function Header({
           onClick={togglePill}
           aria-expanded={pillVisible}
           aria-label={pillVisible ? 'Close tournament navigation' : 'Open tournament navigation'}
-          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/95 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-colors hover:bg-muted/60 motion-reduce:transition-none"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background transition-colors hover:bg-muted/60 motion-reduce:transition-none"
         >
           {pillVisible ? (
             <svg className="size-5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -726,9 +726,9 @@ export function GolfTracker() {
         )}
       </div>
 
-      <div className="flex rounded-lg border border-input overflow-hidden text-sm h-9">
+      <div className="flex h-8 w-full min-w-0 rounded-lg border border-input overflow-hidden text-[10px] leading-tight sm:text-xs md:h-9 md:text-sm">
         <button
-          className={`px-3 h-full transition-colors ${
+          className={`min-w-0 shrink px-1.5 h-full transition-colors sm:px-2 md:px-3 ${
             view === 'leaderboard'
               ? 'bg-primary text-primary-foreground'
               : 'hover:bg-muted text-foreground'
@@ -742,7 +742,7 @@ export function GolfTracker() {
           onClick={() => selectView('starred')}
         />
         <button
-          className={`px-3 h-full border-l border-input transition-colors ${
+          className={`min-w-0 shrink px-1.5 h-full border-l border-input transition-colors sm:px-2 md:px-3 ${
             view === 'pairings'
               ? 'bg-primary text-primary-foreground'
               : 'hover:bg-muted text-foreground'
