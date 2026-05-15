@@ -139,28 +139,36 @@ export function parseCompetitor(c: ESPNCompetitor, currentRound: number): Player
   }
 }
 
-// ─── Tie detection ────────────────────────────────────────────────────────────
+// ─── Tie detection (golf-style: shared rank, skip positions after ties) ───────
 
 export function applyTiedPositions(players: Player[]): Player[] {
-  const sorted = [...players].sort((a, b) => a.position - b.position)
+  const sorted = [...players].sort((a, b) => {
+    if (a.totalNum !== b.totalNum) return a.totalNum - b.totalNum
+    return a.position - b.position
+  })
 
-  for (let i = 0; i < sorted.length; i++) {
-    const curr = sorted[i]
-    const prev = sorted[i - 1]
-    const next = sorted[i + 1]
-    const hasTie =
-      (i > 0 && curr && prev && curr.totalScore === prev.totalScore) ||
-      (i < sorted.length - 1 && curr && next && curr.totalScore === next.totalScore)
+  const ranked: Player[] = []
+  let nextRank = 1
+  let i = 0
 
-    if (curr) {
-      sorted[i] = {
-        ...curr,
-        posDisplay: hasTie ? `T${curr.position}` : String(curr.position),
-      }
+  while (i < sorted.length) {
+    const score = sorted[i].totalNum
+    let j = i + 1
+    while (j < sorted.length && sorted[j].totalNum === score) j++
+
+    const tieCount = j - i
+    const position = nextRank
+    const posDisplay = tieCount > 1 ? `T${position}` : String(position)
+
+    for (let k = i; k < j; k++) {
+      ranked.push({ ...sorted[k], position, posDisplay })
     }
+
+    nextRank += tieCount
+    i = j
   }
 
-  return sorted as Player[]
+  return ranked
 }
 
 // ─── Top-level data transformer ───────────────────────────────────────────────
