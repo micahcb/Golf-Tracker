@@ -156,28 +156,95 @@ function LeaderboardTable({
   )
 }
 
-// ─── Header ───────────────────────────────────────────────────────────────────
+/** Past this offset, a strong downward scroll can hide the pill. */
+const PILL_HIDE_AFTER_Y = 104
+/** Strong downward delta (px) required to auto-hide. */
+const PILL_HIDE_DELTA = 18
+/** Strong upward delta (px) to auto-show when the pill was hidden. */
+const PILL_SHOW_DELTA = -18
+/** Always show the pill when at or above this scroll offset. */
+const PILL_SHOW_TOP_Y = 40
+/** Ignore auto hide/show toggles within this window (ms) to stop layout–scroll feedback loops. */
+const PILL_TOGGLE_COOLDOWN_MS = 380
+
+// ─── Floating nav pill (below auth) + FAB to reopen when hidden ─────────────
 function Header({
   meta,
   countdown,
   lastUpdated,
   onRefresh,
   refreshing,
+  controls,
 }: {
   meta: TournamentMeta | null
   countdown: number
   lastUpdated: Date | null
   onRefresh: () => void
   refreshing: boolean
+  controls: React.ReactNode
 }) {
   const [tournamentOpen, setTournamentOpen] = useState(true)
+  const [pillVisible, setPillVisible] = useState(true)
+  const lastScrollYRef = useRef(0)
+  const pillVisibleRef = useRef(true)
+  const scrollRafRef = useRef(0)
+  const lastPillToggleAtRef = useRef(0)
   const tournamentPanelId = 'header-tournament-panel'
 
-  return (
-    <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="max-w-screen-xl mx-auto px-4 py-4 flex items-start justify-between gap-4">
+  useEffect(() => {
+    pillVisibleRef.current = pillVisible
+  }, [pillVisible])
+
+  useEffect(() => {
+    lastScrollYRef.current = window.scrollY
+
+    const flushScroll = () => {
+      scrollRafRef.current = 0
+      const y = Math.max(0, window.scrollY)
+      const last = lastScrollYRef.current
+      const delta = y - last
+      lastScrollYRef.current = y
+
+      let next = pillVisibleRef.current
+      if (y <= PILL_SHOW_TOP_Y) next = true
+      else if (next && y > PILL_HIDE_AFTER_Y && delta > PILL_HIDE_DELTA) next = false
+      else if (!next && delta < PILL_SHOW_DELTA) next = true
+
+      if (next !== pillVisibleRef.current) {
+        const now = performance.now()
+        const forcingTopShow = next === true && y <= PILL_SHOW_TOP_Y
+        if (!forcingTopShow && now - lastPillToggleAtRef.current < PILL_TOGGLE_COOLDOWN_MS) {
+          return
+        }
+        lastPillToggleAtRef.current = now
+        pillVisibleRef.current = next
+        setPillVisible(next)
+      }
+    }
+
+    const onScroll = () => {
+      if (scrollRafRef.current) return
+      scrollRafRef.current = requestAnimationFrame(flushScroll)
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current)
+    }
+  }, [])
+
+  const openPill = () => {
+    pillVisibleRef.current = true
+    setPillVisible(true)
+    lastPillToggleAtRef.current = performance.now()
+  }
+
+  const navBody = (
+    <>
+      <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3 border-b border-border/70">
         <div className="min-w-0 flex-1">
-          <div className="w-full border-b border-border pb-2">
+          <div className="w-full border-b border-border/60 pb-2">
             <div className="flex items-center gap-3">
               <div
                 className="relative h-9 w-9 shrink-0"
@@ -200,7 +267,7 @@ function Header({
                   priority
                 />
               </div>
-              <h1 className="text-xl font-semibold tracking-tight leading-tight">
+              <h1 className="text-lg font-semibold tracking-tight leading-tight sm:text-xl">
                 Dimples
               </h1>
             </div>
@@ -276,7 +343,7 @@ function Header({
           </div>
         </div>
 
-        <div className="text-right text-xs text-muted-foreground flex-shrink-0">
+        <div className="text-right text-xs text-muted-foreground shrink-0">
           {lastUpdated && (
             <div>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           )}
@@ -289,7 +356,57 @@ function Header({
           </button>
         </div>
       </div>
-    </header>
+
+      <div className="px-4 py-3 flex flex-wrap items-center gap-3">{controls}</div>
+    </>
+  )
+
+  return (
+    <>
+      <div
+        aria-hidden
+        className="min-h-[min(28vh,14.5rem)] shrink-0 sm:min-h-[min(26vh,14rem)]"
+      />
+
+      <header
+        aria-hidden={!pillVisible}
+        className={`fixed left-3 right-3 z-40 mx-auto w-auto max-w-screen-xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none top-[calc(env(safe-area-inset-top,0px)+2.75rem+10px)] ${
+          pillVisible
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-3 scale-[0.98] opacity-0'
+        }`}
+      >
+        <div className="max-h-[min(72vh,calc(100dvh-5.5rem))] overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-background/95 shadow-lg backdrop-blur-md supports-[backdrop-filter]:bg-background/85">
+          {navBody}
+        </div>
+      </header>
+
+      {!pillVisible && (
+        <button
+          type="button"
+          onClick={openPill}
+          aria-label="Open tournament navigation"
+          className="fixed bottom-4 right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/95 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-colors hover:bg-muted/60 motion-reduce:transition-none"
+        >
+          <span className="relative size-6 shrink-0" aria-hidden>
+            <Image
+              src={logoLightTheme}
+              alt=""
+              fill
+              sizes="24px"
+              className="object-contain dark:hidden"
+            />
+            <Image
+              src={logoDarkTheme}
+              alt=""
+              fill
+              sizes="24px"
+              className="hidden object-contain dark:block"
+            />
+          </span>
+        </button>
+      )}
+    </>
   )
 }
 
@@ -483,6 +600,79 @@ export function GolfTracker() {
     )
   }
 
+  const navControls = (
+    <>
+      <div className="relative flex-1 min-w-56">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z"
+          />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search player or country…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 h-9 rounded-lg border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <div className="flex rounded-lg border border-input overflow-hidden text-sm h-9">
+        <button
+          className={`px-3 h-full transition-colors ${
+            view === 'leaderboard'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-foreground'
+          }`}
+          onClick={() => selectView('leaderboard')}
+        >
+          Leaderboard
+        </button>
+        <StarredPlayersTabButton
+          selected={view === 'starred'}
+          onClick={() => selectView('starred')}
+        />
+        <button
+          className={`px-3 h-full border-l border-input transition-colors ${
+            view === 'pairings'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-foreground'
+          }`}
+          onClick={() => selectView('pairings')}
+        >
+          Pairings
+        </button>
+        <FollowedPairingsTabButton
+          selected={view === 'followed'}
+          onClick={() => selectView('followed')}
+        />
+      </div>
+
+      {search && (
+        <span className="text-xs text-muted-foreground">
+          {(view === 'starred' ? starredFiltered : filtered).length} result
+          {(view === 'starred' ? starredFiltered : filtered).length !== 1 ? 's' : ''}
+        </span>
+      )}
+    </>
+  )
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -491,85 +681,11 @@ export function GolfTracker() {
         lastUpdated={lastUpdated}
         onRefresh={() => fetchData()}
         refreshing={refreshing}
+        controls={navControls}
       />
 
-      {/* Controls bar */}
-      <div className="max-w-screen-xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-56">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search player or country…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 h-9 rounded-lg border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-
-        {/* View toggle */}
-        <div className="flex rounded-lg border border-input overflow-hidden text-sm h-9">
-          <button
-            className={`px-3 h-full transition-colors ${
-              view === 'leaderboard'
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted text-foreground'
-            }`}
-            onClick={() => selectView('leaderboard')}
-          >
-            Leaderboard
-          </button>
-          <StarredPlayersTabButton
-            selected={view === 'starred'}
-            onClick={() => selectView('starred')}
-          />
-          <button
-            className={`px-3 h-full border-l border-input transition-colors ${
-              view === 'pairings'
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted text-foreground'
-            }`}
-            onClick={() => selectView('pairings')}
-          >
-            Pairings
-          </button>
-          <FollowedPairingsTabButton
-            selected={view === 'followed'}
-            onClick={() => selectView('followed')}
-          />
-        </div>
-
-        {/* Result count */}
-        {search && (
-          <span className="text-xs text-muted-foreground">
-            {(view === 'starred' ? starredFiltered : filtered).length} result
-            {(view === 'starred' ? starredFiltered : filtered).length !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-
       {/* Main content */}
-      <main className="max-w-screen-xl mx-auto px-4 pb-12">
+      <main className="max-w-screen-xl mx-auto px-4 pb-12 pt-2 sm:pt-3">
         {view === 'leaderboard' || view === 'starred' ? (
           <LeaderboardTable
             players={view === 'starred' ? starredFiltered : filtered}
