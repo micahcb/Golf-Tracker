@@ -156,6 +156,31 @@ function LeaderboardTable({
   )
 }
 
+/** Tailwind `md` breakpoint — viewports below this use FAB nav by default. */
+const MOBILE_MEDIA = '(max-width: 767px)'
+
+function useMobileNavLayout() {
+  const [isMobile, setIsMobile] = useState(false)
+  const [pillVisible, setPillVisible] = useState(false)
+  const pillVisibleRef = useRef(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_MEDIA)
+    const sync = () => {
+      const mobile = mq.matches
+      setIsMobile(mobile)
+      const visible = !mobile
+      pillVisibleRef.current = visible
+      setPillVisible(visible)
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  return { isMobile, pillVisible, setPillVisible, pillVisibleRef }
+}
+
 /** Past this offset, a strong downward scroll can hide the pill. */
 const PILL_HIDE_AFTER_Y = 104
 /** Strong downward delta (px) required to auto-hide. */
@@ -184,18 +209,19 @@ function Header({
   controls: React.ReactNode
 }) {
   const [tournamentOpen, setTournamentOpen] = useState(true)
-  const [pillVisible, setPillVisible] = useState(true)
+  const { isMobile, pillVisible, setPillVisible, pillVisibleRef } = useMobileNavLayout()
   const lastScrollYRef = useRef(0)
-  const pillVisibleRef = useRef(true)
   const scrollRafRef = useRef(0)
   const lastPillToggleAtRef = useRef(0)
   const tournamentPanelId = 'header-tournament-panel'
 
   useEffect(() => {
     pillVisibleRef.current = pillVisible
-  }, [pillVisible])
+  }, [pillVisible, pillVisibleRef])
 
   useEffect(() => {
+    if (isMobile) return
+
     lastScrollYRef.current = window.scrollY
 
     const flushScroll = () => {
@@ -232,12 +258,23 @@ function Header({
       window.removeEventListener('scroll', onScroll)
       if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current)
     }
-  }, [])
+  }, [isMobile, pillVisibleRef, setPillVisible])
 
   const openPill = () => {
     pillVisibleRef.current = true
     setPillVisible(true)
     lastPillToggleAtRef.current = performance.now()
+  }
+
+  const closePill = () => {
+    pillVisibleRef.current = false
+    setPillVisible(false)
+    lastPillToggleAtRef.current = performance.now()
+  }
+
+  const togglePill = () => {
+    if (pillVisibleRef.current) closePill()
+    else openPill()
   }
 
   const navBody = (
@@ -365,46 +402,102 @@ function Header({
     <>
       <div
         aria-hidden
-        className="min-h-[min(28vh,14.5rem)] shrink-0 sm:min-h-[min(26vh,14rem)]"
+        className={
+          isMobile
+            ? 'h-3 shrink-0'
+            : 'min-h-[min(28vh,14.5rem)] shrink-0 md:min-h-[min(26vh,14rem)]'
+        }
       />
+
+      {isMobile && pillVisible && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-[45] bg-background/60 backdrop-blur-[2px]"
+          onClick={closePill}
+        />
+      )}
 
       <header
         aria-hidden={!pillVisible}
-        className={`fixed left-3 right-3 z-40 mx-auto w-auto max-w-screen-xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none top-[calc(env(safe-area-inset-top,0px)+2.75rem+10px)] ${
+        className={`fixed z-40 mx-auto w-auto max-w-screen-xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
+          isMobile && pillVisible
+            ? 'left-2 right-2 bottom-[calc(1rem+2.75rem+env(safe-area-inset-bottom,0px))] top-auto'
+            : 'left-3 right-3 top-[calc(env(safe-area-inset-top,0px)+2.75rem+10px)]'
+        } ${
           pillVisible
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none -translate-y-3 scale-[0.98] opacity-0'
         }`}
       >
-        <div className="max-h-[min(72vh,calc(100dvh-5.5rem))] overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-background/95 shadow-lg backdrop-blur-md supports-[backdrop-filter]:bg-background/85">
+        <div
+          className={`overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-background/95 shadow-lg backdrop-blur-md supports-[backdrop-filter]:bg-background/85 ${
+            isMobile
+              ? 'max-h-[min(78vh,calc(100dvh-6.5rem))]'
+              : 'max-h-[min(72vh,calc(100dvh-5.5rem))]'
+          }`}
+        >
           {navBody}
         </div>
       </header>
 
-      {!pillVisible && (
+      {isMobile ? (
         <button
           type="button"
-          onClick={openPill}
-          aria-label="Open tournament navigation"
-          className="fixed bottom-4 right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/95 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-colors hover:bg-muted/60 motion-reduce:transition-none"
+          onClick={togglePill}
+          aria-expanded={pillVisible}
+          aria-label={pillVisible ? 'Close tournament navigation' : 'Open tournament navigation'}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/95 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-colors hover:bg-muted/60 motion-reduce:transition-none"
         >
-          <span className="relative size-6 shrink-0" aria-hidden>
-            <Image
-              src={logoLightTheme}
-              alt=""
-              fill
-              sizes="24px"
-              className="object-contain dark:hidden"
-            />
-            <Image
-              src={logoDarkTheme}
-              alt=""
-              fill
-              sizes="24px"
-              className="hidden object-contain dark:block"
-            />
-          </span>
+          {pillVisible ? (
+            <svg className="size-5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <span className="relative size-6 shrink-0" aria-hidden>
+              <Image
+                src={logoLightTheme}
+                alt=""
+                fill
+                sizes="24px"
+                className="object-contain dark:hidden"
+              />
+              <Image
+                src={logoDarkTheme}
+                alt=""
+                fill
+                sizes="24px"
+                className="hidden object-contain dark:block"
+              />
+            </span>
+          )}
         </button>
+      ) : (
+        !pillVisible && (
+          <button
+            type="button"
+            onClick={openPill}
+            aria-label="Open tournament navigation"
+            className="fixed bottom-4 right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/95 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-colors hover:bg-muted/60 motion-reduce:transition-none"
+          >
+            <span className="relative size-6 shrink-0" aria-hidden>
+              <Image
+                src={logoLightTheme}
+                alt=""
+                fill
+                sizes="24px"
+                className="object-contain dark:hidden"
+              />
+              <Image
+                src={logoDarkTheme}
+                alt=""
+                fill
+                sizes="24px"
+                className="hidden object-contain dark:block"
+              />
+            </span>
+          </button>
+        )
       )}
     </>
   )
